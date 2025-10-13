@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'drf_spectacular',
     'django_filters',
+    'users',
 ]
 
 MIDDLEWARE = [
@@ -145,3 +146,5 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "Library API",
     "VERSION": "0.1.0",
 }
+
+AUTH_USER_MODEL = "users.User"
