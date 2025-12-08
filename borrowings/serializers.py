@@ -23,3 +23,20 @@ class BorrowingReadSerializer(serializers.ModelSerializer):
             "user",
         )
         read_only_fields = ("user",)
+
+
+class BorrowingCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Borrowing
+        fields = ("id", "borrow_date", "expected_return_date", "book")
+
+    def validate(self, attrs):
+        borrow_date = attrs.get("borrow_date")
+        expected = attrs.get("expected_return_date")
+        if expected and borrow_date and expected < borrow_date:
+            raise serializers.ValidationError("expected_return_date must be >= borrow_date")
+
+        book = attrs.get("book")
+        if book and book.inventory <= 0:
+            raise serializers.ValidationError({"book": "No inventory available for this book"})
+        return attrs
