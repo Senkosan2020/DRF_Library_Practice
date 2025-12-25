@@ -1,21 +1,49 @@
-from rest_framework.throttling import UserRateThrottle
+import hashlib
+from rest_framework.throttling import SimpleRateThrottle
 
-class BasePerUserThrottle(UserRateThrottle):
-    def get_cache_key(self, request, view):
-        user = getattr(request, "user", None)
-        if not user or not user.is_authenticated:
-            return None
-        ident = f"{user.pk}:{int(user.date_joined.timestamp())}"
-        return self.cache_format % {"scope": self.scope, "ident": ident}
+def _user_cache_ident(user) -> str:
+    raw = f"{user.pk}|{user.email}|{user.password}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
-class BorrowingBurstThrottle(BasePerUserThrottle):
+class BorrowingBurstThrottle(SimpleRateThrottle):
     scope = "borrowing_burst"
 
-class BorrowingSustainedThrottle(BasePerUserThrottle):
+    def get_cache_key(self, request, view):
+        u = getattr(request, "user", None)
+        if not u or not u.is_authenticated:
+            return None
+        ident = _user_cache_ident(u)
+        return f"throttle:{self.scope}:{ident}"
+
+
+class BorrowingSustainedThrottle(SimpleRateThrottle):
     scope = "borrowing_sustained"
 
-class ReturnBurstThrottle(BasePerUserThrottle):
+    def get_cache_key(self, request, view):
+        u = getattr(request, "user", None)
+        if not u or not u.is_authenticated:
+            return None
+        ident = _user_cache_ident(u)
+        return f"throttle:{self.scope}:{ident}"
+
+
+class ReturnBurstThrottle(SimpleRateThrottle):
     scope = "return_burst"
 
-class ReturnSustainedThrottle(BasePerUserThrottle):
+    def get_cache_key(self, request, view):
+        u = getattr(request, "user", None)
+        if not u or not u.is_authenticated:
+            return None
+        ident = _user_cache_ident(u)
+        return f"throttle:{self.scope}:{ident}"
+
+
+class ReturnSustainedThrottle(SimpleRateThrottle):
     scope = "return_sustained"
+
+    def get_cache_key(self, request, view):
+        u = getattr(request, "user", None)
+        if not u or not u.is_authenticated:
+            return None
+        ident = _user_cache_ident(u)
+        return f"throttle:{self.scope}:{ident}"
