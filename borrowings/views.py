@@ -1,11 +1,13 @@
-from rest_framework import viewsets, permissions, mixins, serializers, status
+from django.utils import timezone
+from django.db import transaction
+from rest_framework import mixins, permissions, serializers, status, viewsets
 from rest_framework.response import Response
 from rest_framework.decorators import action
+
 from books.models import Book
 from .models import Borrowing
-from .serializers import BorrowingReadSerializer, BorrowingCreateSerializer
-from django.db import transaction
-from django.utils import timezone
+from .serializers import BorrowingCreateSerializer, BorrowingReadSerializer
+
 
 class BorrowingViewSet(
     mixins.ListModelMixin,
@@ -13,13 +15,31 @@ class BorrowingViewSet(
     mixins.CreateModelMixin,
     viewsets.GenericViewSet,
 ):
-    serializer_class = BorrowingReadSerializer
     permission_classes = [permissions.IsAuthenticated]
-    http_method_names = ["get", "post"]  # забороняємо put/patch/delete
+    http_method_names = ["get", "post"]
+
+    queryset = Borrowing.objects.select_related("book", "user").order_by("-id")
 
     def get_queryset(self):
-        qs = Borrowing.objects.select_related("book", "user").order_by("-id")
-        return qs if self.request.user.is_staff else qs.filter(user=self.request.user)
+        qs = self.queryset
+        u = self.request.user
+
+        if not u.is_staff:
+            qs = qs.filter(user=u)
+
+        is_active = self.request.query_params.get("is_active")
+        if is_active is not None:
+            v = is_active.lower()
+            if v == "true":
+                qs = qs.filter(actual_return_date__isnull=True)
+            elif v == "false":
+                qs = qs.filter(actual_return_date__isnull=False)
+
+        user_id = self.request.query_params.get("user_id")
+        if user_id and u.is_staff:
+            qs = qs.filter(user_id=user_id)
+
+        return qs
 
     def get_serializer_class(self):
         return BorrowingCreateSerializer if self.action == "create" else BorrowingReadSerializer
@@ -27,26 +47,21 @@ class BorrowingViewSet(
     @transaction.atomic
     def perform_create(self, serializer):
         book = serializer.validated_data["book"]
-        locked_book = Book.objects.select_for_update().get(pk=book.pk)
-        if locked_book.inventory <= 0:
+        b = Book.objects.select_for_update().get(pk=book.pk)
+        if b.inventory <= 0:
             raise serializers.ValidationError({"book": "No inventory available"})
-        locked_book.inventory -= 1
-        locked_book.save(update_fields=["inventory"])
+        b.inventory -= 1
+        b.save(update_fields=["inventory"])
         serializer.save(user=self.request.user)
-
-    def create(self, request, *args, **kwargs):
-        create_serializer = self.get_serializer(data=request.data)
-        create_serializer.is_valid(raise_exception=True)
-        self.perform_create(create_serializer)
-        instance = create_serializer.instance
-        read_data = BorrowingReadSerializer(instance).data
-        headers = self.get_success_headers(read_data)
-        return Response(read_data, status=status.HTTP_201_CREATED, headers=headers)
 
     @action(detail=True, methods=["post"], url_path="return")
     @transaction.atomic
     def return_borrowing(self, request, pk=None):
-        borrowing = self.get_object()
+        try:
+            borrowing = Borrowing.objects.select_related("book", "user").get(pk=pk)
+        except Borrowing.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
         if not request.user.is_staff and borrowing.user_id != request.user.id:
             return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
 
@@ -57,8 +72,8 @@ class BorrowingViewSet(
         book.inventory += 1
         book.save(update_fields=["inventory"])
 
-        borrowing.actual_return_date = timezone.now().date()
+        actual = max(timezone.localdate(), borrowing.borrow_date)
+        borrowing.actual_return_date = actual
         borrowing.save(update_fields=["actual_return_date"])
 
-        data = BorrowingReadSerializer(borrowing).data
-        return Response(data, status=status.HTTP_200_OK)
+        return Response(BorrowingReadSerializer(borrowing).data, status=status.HTTP_200_OK)
