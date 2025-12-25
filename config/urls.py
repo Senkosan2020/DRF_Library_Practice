@@ -16,9 +16,17 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
-from .health import healthz
+
 from .api_root import api_root
 from .views import health, root_redirect
+from .health import healthz
+
+
+api_urlpatterns = [
+    path("", api_root, name="api-root"),
+    path("books/", include("books.urls")),
+    path("borrowings/", include("borrowings.urls"))
+]
 
 urlpatterns = [
     path("", root_redirect),
@@ -26,9 +34,7 @@ urlpatterns = [
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema")),
     path("users/", include("users.urls")),
-    path("api/", include("books.urls")),
-    path("api/", include("borrowings.urls")),
+    path("api/", include((api_urlpatterns, "api"), namespace="api")),
     path("healthz/", healthz),
-    path("api/root/", api_root),
     path("health/", health),
 ]
