@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 
 
 class Book(models.Model):
@@ -17,3 +18,15 @@ class Book(models.Model):
 
     def __str__(self):
         return f"{self.title} — {self.author}"
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=Q(inventory__gte=0),
+                name="book_inventory_non_negative",
+            ),
+            models.CheckConstraint(
+                check=Q(daily_fee__gt=0),
+                name="book_daily_fee_positive",
+            ),
+        ]
