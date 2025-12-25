@@ -159,7 +159,20 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Library API",
-    "VERSION": "0.1.0",
+    "DESCRIPTION": "Django REST API for users, books, and borrowings.",
+    "VERSION": "1.0.0",
+    "SERVERS": [
+        {"url": "http://localhost:8000", "description": "Local development"},
+    ],
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SECURITY": [{"bearerAuth": []}],
+    "SECURITY_SCHEMES": {
+        "bearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+        }
+    },
 }
 
 AUTH_USER_MODEL = "users.User"
