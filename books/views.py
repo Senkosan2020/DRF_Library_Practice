@@ -1,7 +1,7 @@
 import csv
 import io
 from django.http import HttpResponse
-from rest_framework import viewsets, filters, mixins, permissions, status
+from rest_framework import viewsets, filters, permissions, status
 from rest_framework.filters import OrderingFilter
 from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
@@ -54,10 +54,7 @@ from .filters import BookFilter
     ),
 )
 class BookViewSet(
-    mixins.ListModelMixin,
-    mixins.RetrieveModelMixin,
-    mixins.CreateModelMixin,
-    viewsets.GenericViewSet,
+    viewsets.ModelViewSet
 ):
     queryset = Book.objects.all().order_by("title", "id")
     serializer_class = BookSerializer
