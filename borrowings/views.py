@@ -206,3 +206,27 @@ class BorrowingViewSet(
 
         ser = BorrowingReadSerializer(qs, many=True)
         return Response(ser.data)
+
+    @extend_schema(
+        tags=["Borrowings"],
+        summary="Borrowings stats",
+        description="Aggregated counters for visible borrowings.",
+        responses={
+            200: OpenApiTypes.OBJECT,  # {"total": int, "active": int, "overdue": int, "returned": int}
+            401: OpenApiResponse(description="Unauthorized"),
+        },
+    )
+    @action(detail=False, methods=["get"], url_path="stats")
+    def stats(self, request):
+        qs = self.get_queryset()
+        today = timezone.localdate()
+        data = {
+            "total": qs.count(),
+            "active": qs.filter(actual_return_date__isnull=True).count(),
+            "overdue": qs.filter(
+                actual_return_date__isnull=True,
+                expected_return_date__lt=today
+            ).count(),
+            "returned": qs.filter(actual_return_date__isnull=False).count(),
+        }
+        return Response(data)
