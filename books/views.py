@@ -1,4 +1,6 @@
 from rest_framework import viewsets
+from rest_framework.filters import OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
 from .models import Book
 from .serializers import BookSerializer
 from .permissions import IsAdminOrReadOnly
@@ -48,6 +50,8 @@ class BookViewSet(viewsets.ModelViewSet):
     queryset = Book.objects.all().order_by("title", "id")
     serializer_class = BookSerializer
     permission_classes = [IsAdminOrReadOnly]
+    filter_backends = (DjangoFilterBackend, OrderingFilter)
+    ordering_fields = ("title", "author", "inventory", "daily_fee")
 
     @extend_schema(
         summary="List books",

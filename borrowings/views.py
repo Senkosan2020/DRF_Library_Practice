@@ -2,11 +2,13 @@ from django.utils import timezone
 from django.db import transaction
 from django.db.models import F
 from django.shortcuts import get_object_or_404
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, permissions, serializers, status, viewsets
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAdminUser
+from rest_framework.filters import OrderingFilter
 from datetime import date
 
 from books.models import Book
@@ -70,6 +72,8 @@ class BorrowingViewSet(
     permission_classes = [permissions.IsAuthenticated]
     http_method_names = ["get", "post"]
     pagination_class = OptionalLimitOffsetPagination
+    filter_backends = (DjangoFilterBackend, OrderingFilter)
+    ordering_fields = ("borrow_date", "expected_return_date", "actual_return_date")
 
     queryset = Borrowing.objects.select_related("book", "user").order_by("-borrow_date", "-id")
 
