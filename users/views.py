@@ -20,7 +20,42 @@ User = get_user_model()
     tags=["Auth"],
 )
 class TokenObtainPairDocView(TokenObtainPairView):
-    pass
+    @extend_schema(
+        tags=["Auth"],
+        summary="Obtain JWT access & refresh tokens",
+        description="Authenticate with email & password to receive JWT tokens.",
+        request=inline_serializer(
+            name="TokenObtainRequest",
+            fields={
+                "email": serializers.EmailField(),
+                "password": serializers.CharField(write_only=True),
+            },
+        ),
+        responses={
+            200: inline_serializer(
+                name="TokenObtainResponse",
+                fields={
+                    "access": serializers.CharField(),
+                    "refresh": serializers.CharField(),
+                },
+            ),
+            401: OpenApiResponse(description="Invalid credentials"),
+        },
+        examples=[
+            OpenApiExample(
+                "Valid credentials",
+                value={"email": "user@example.com", "password": "secret"},
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Success response",
+                value={"access": "<jwt_access>", "refresh": "<jwt_refresh>"},
+                response_only=True,
+            ),
+        ],
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
 
 
 @extend_schema(
@@ -37,7 +72,36 @@ class TokenObtainPairDocView(TokenObtainPairView):
     tags=["Auth"],
 )
 class TokenRefreshDocView(TokenRefreshView):
-    pass
+    @extend_schema(
+        tags=["Auth"],
+        summary="Refresh JWT access token",
+        description="Use a valid refresh token to obtain a new access token.",
+        request=inline_serializer(
+            name="TokenRefreshRequest",
+            fields={"refresh": serializers.CharField()},
+        ),
+        responses={
+            200: inline_serializer(
+                name="TokenRefreshResponse",
+                fields={"access": serializers.CharField()},
+            ),
+            401: OpenApiResponse(description="Invalid or expired refresh token"),
+        },
+        examples=[
+            OpenApiExample(
+                "Valid refresh",
+                value={"refresh": "<jwt_refresh>"},
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Success response",
+                value={"access": "<jwt_access_new>"},
+                response_only=True,
+            ),
+        ],
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
 
 @extend_schema_view(
     post=extend_schema(
