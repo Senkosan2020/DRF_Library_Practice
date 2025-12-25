@@ -9,8 +9,19 @@ from .models import Borrowing
 from .serializers import BorrowingCreateSerializer, BorrowingReadSerializer
 
 from config.pagination import OptionalLimitOffsetPagination
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
 
-
+@extend_schema_view(
+    list=extend_schema(
+        parameters=[
+            OpenApiParameter(name="is_active", type=OpenApiTypes.STR, description="true|false"),
+            OpenApiParameter(name="user_id", type=OpenApiTypes.INT, description="Admin only"),
+            OpenApiParameter(name="overdue", type=OpenApiTypes.STR, description="true|false"),
+            OpenApiParameter(name="limit", type=OpenApiTypes.INT, description="Enable pagination"),
+            OpenApiParameter(name="offset", type=OpenApiTypes.INT, description="Pagination offset"),
+        ]
+    ),
+)
 class BorrowingViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
@@ -66,6 +77,8 @@ class BorrowingViewSet(
         b.save(update_fields=["inventory"])
         serializer.save(user=self.request.user)
 
+    @extend_schema(operation_id="borrowing_return",
+                       description="Return a borrowing, increment inventory, set actual_return_date")
     @action(detail=True, methods=["post"], url_path="return")
     @transaction.atomic
     def return_borrowing(self, request, pk=None):
