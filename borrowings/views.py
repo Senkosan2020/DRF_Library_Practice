@@ -14,7 +14,13 @@ from .models import Borrowing
 from .serializers import BorrowingCreateSerializer, BorrowingReadSerializer
 
 from config.pagination import OptionalLimitOffsetPagination
-from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
+from drf_spectacular.utils import (
+    extend_schema,
+    OpenApiParameter,
+    OpenApiResponse,
+    OpenApiExample,
+)
+from drf_spectacular.types import OpenApiTypes
 from .throttling import (
     BorrowingBurstThrottle,
     BorrowingSustainedThrottle,
@@ -22,17 +28,7 @@ from .throttling import (
     ReturnSustainedThrottle,
 )
 
-@extend_schema_view(
-    list=extend_schema(
-        parameters=[
-            OpenApiParameter(name="is_active", type=OpenApiTypes.STR, description="true|false"),
-            OpenApiParameter(name="user_id", type=OpenApiTypes.INT, description="Admin only"),
-            OpenApiParameter(name="overdue", type=OpenApiTypes.STR, description="true|false"),
-            OpenApiParameter(name="limit", type=OpenApiTypes.INT, description="Enable pagination"),
-            OpenApiParameter(name="offset", type=OpenApiTypes.INT, description="Pagination offset"),
-        ]
-    ),
-)
+@extend_schema(tags=["Borrowings"])
 class BorrowingViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
@@ -44,6 +40,26 @@ class BorrowingViewSet(
     pagination_class = OptionalLimitOffsetPagination
 
     queryset = Borrowing.objects.select_related("book", "user").order_by("-borrow_date", "-id")
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="is_active",
+                type=OpenApiTypes.BOOL,
+                location=OpenApiParameter.QUERY,
+                description="Filter active borrowings (true/false, 1/0)",
+            ),
+            OpenApiParameter(
+                name="user_id",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Admin only: filter by user id",
+            ),
+        ],
+        responses={200: BorrowingReadSerializer},
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 
     def get_queryset(self):
         qs = self.queryset
@@ -94,8 +110,27 @@ class BorrowingViewSet(
         b.save(update_fields=["inventory"])
         serializer.save(user=self.request.user)
 
-    @extend_schema(operation_id="borrowing_return",
-                       description="Return a borrowing, increment inventory, set actual_return_date")
+    @extend_schema(
+        responses={
+            200: BorrowingReadSerializer,
+            403: OpenApiResponse(description="Forbidden"),
+            404: OpenApiResponse(description="Not found"),
+            429: OpenApiResponse(description="Throttled"),
+        },
+        examples=[
+            OpenApiExample(
+                "Return borrowing",
+                description="Mark borrowing as returned",
+                value=None,
+            ),
+        ],
+    )
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="return",
+        throttle_classes=[ReturnBurstThrottle, ReturnSustainedThrottle],
+    )
     @action(detail=True, methods=["post"], url_path="return")
     @transaction.atomic
     def return_borrowing(self, request, pk=None):
