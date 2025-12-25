@@ -8,6 +8,8 @@ from books.models import Book
 from .models import Borrowing
 from .serializers import BorrowingCreateSerializer, BorrowingReadSerializer
 
+from config.pagination import OptionalLimitOffsetPagination
+
 
 class BorrowingViewSet(
     mixins.ListModelMixin,
@@ -17,6 +19,7 @@ class BorrowingViewSet(
 ):
     permission_classes = [permissions.IsAuthenticated]
     http_method_names = ["get", "post"]
+    pagination_class = OptionalLimitOffsetPagination
 
     queryset = Borrowing.objects.select_related("book", "user").order_by("-id")
 
