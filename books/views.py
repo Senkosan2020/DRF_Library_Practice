@@ -12,6 +12,9 @@ from drf_spectacular.utils import (
     OpenApiResponse,
     OpenApiExample,
 )
+from .filters import BookFilter
+
+filterset_class = BookFilter
 
 @extend_schema_view(
     list=extend_schema(
