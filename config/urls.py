@@ -16,6 +16,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from .health import healthz
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -24,4 +25,5 @@ urlpatterns = [
     path("users/", include("users.urls")),
     path("api/", include("books.urls")),
     path("api/", include("borrowings.urls")),
+    path("healthz/", healthz),
 ]
