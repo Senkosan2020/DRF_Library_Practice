@@ -1,5 +1,9 @@
+import csv
+import io
+from django.http import HttpResponse
 from rest_framework import viewsets, filters
 from rest_framework.filters import OrderingFilter
+from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Book
 from .serializers import BookSerializer
@@ -91,3 +95,22 @@ class BookViewSet(viewsets.ModelViewSet):
     )
     def create(self, request, *args, **kwargs):
         return super().create(request, *args, **kwargs)
+
+    @action(detail=False, methods=["get"], url_path="export")
+    def export(self, request):
+        # apply existing filters / ordering
+        qs = self.filter_queryset(self.get_queryset())
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        writer.writerow(["id", "title", "author", "cover", "inventory", "daily_fee"])
+        for b in qs:
+            writer.writerow([b.id, b.title, b.author, b.cover, b.inventory, str(b.daily_fee)])
+
+        content = output.getvalue()
+        output.close()
+
+        response = HttpResponse(content, content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="books.csv"'
+        return response
