@@ -17,6 +17,7 @@ from django.contrib import admin
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from .health import healthz
+from .api_root import api_root
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -26,4 +27,5 @@ urlpatterns = [
     path("api/", include("books.urls")),
     path("api/", include("borrowings.urls")),
     path("healthz/", healthz),
+    path("api/root/", api_root),
 ]
