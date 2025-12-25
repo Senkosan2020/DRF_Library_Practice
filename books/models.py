@@ -30,3 +30,9 @@ class Book(models.Model):
                 name="book_daily_fee_positive",
             ),
         ]
+        indexes = [
+            models.Index(fields=["title"]),
+            models.Index(fields=["author"]),
+            models.Index(fields=["cover"]),
+            models.Index(fields=["title", "author"]),
+        ]

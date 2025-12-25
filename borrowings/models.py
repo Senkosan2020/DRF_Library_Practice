@@ -21,6 +21,13 @@ class Borrowing(models.Model):
                 condition=Q(actual_return_date__isnull=True) | Q(actual_return_date__gte=F("borrow_date")),
             ),
         ]
+        indexes = [
+            models.Index(fields=["user"]),
+            models.Index(fields=["actual_return_date"]),
+            models.Index(fields=["expected_return_date"]),
+            models.Index(fields=["user", "actual_return_date"]),
+            models.Index(fields=["actual_return_date", "expected_return_date"]),
+        ]
 
     def __str__(self):
         return f"{self.user_id} → {self.book_id} [{self.borrow_date}..{self.expected_return_date}]"
