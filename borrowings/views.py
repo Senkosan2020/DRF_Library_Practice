@@ -31,31 +31,34 @@ from .throttling import (
 
 @extend_schema_view(
     list=extend_schema(
-        summary="List borrowings",
-        description="Повертає список позик. Користувач бачить лише свої, Admin бачить усі.",
+        tags=["Borrowings"],
         parameters=[
             OpenApiParameter(
                 name="is_active",
                 type=OpenApiTypes.BOOL,
                 location=OpenApiParameter.QUERY,
-                description="Фільтр: true — активні (ще не повернені), false — повернені"
+                description="Filter by active status (true/false)."
             ),
             OpenApiParameter(
                 name="user_id",
                 type=OpenApiTypes.INT,
                 location=OpenApiParameter.QUERY,
-                description="Тільки для Admin: фільтр за ID користувача"
+                description="Filter by user id (admin only)."
             ),
         ],
-        responses={200: BorrowingReadSerializer(many=True)}
+        responses={200: BorrowingReadSerializer(many=True)},
+        description="List borrowings with optional filters."
+    ),
+    retrieve=extend_schema(
+        tags=["Borrowings"],
+        responses={200: BorrowingReadSerializer},
+        description="Retrieve a borrowing by id."
     ),
     create=extend_schema(
-        summary="Create borrowing",
-        description="Створює нову позику для автентифікованого користувача.",
-        responses={
-            201: BorrowingReadSerializer,
-            400: OpenApiResponse(description="Validation error")
-        },
+        tags=["Borrowings"],
+        request=BorrowingCreateSerializer,
+        responses={201: BorrowingReadSerializer},
+        description="Create a new borrowing."
     ),
 )
 class BorrowingViewSet(
@@ -174,7 +177,6 @@ class BorrowingViewSet(
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Повернення сьогодні + інвентар +1
         borrowing.actual_return_date = date.today()
         borrowing.save(update_fields=["actual_return_date"])
 

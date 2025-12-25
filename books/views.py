@@ -14,32 +14,32 @@ from drf_spectacular.utils import (
 @extend_schema_view(
     list=extend_schema(
         summary="List books",
-        description="Публічний список книжок.",
+        description="Public list of books.",
         parameters=[
             OpenApiParameter(
                 name="author",
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.QUERY,
-                description="Фільтр за автором (якщо підтримується у фільтрах).",
+                description="Filter by author (if supported).",
             ),
             OpenApiParameter(
                 name="title",
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.QUERY,
-                description="Фільтр за назвою (якщо підтримується).",
+                description="Filter by title (if supported).",
             ),
             OpenApiParameter(
                 name="cover",
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.QUERY,
-                description="Тип обкладинки (HARD/SOFT), якщо підтримується.",
+                description="Cover type (HARD/SOFT), if supported.",
             ),
         ],
         responses={200: BookSerializer(many=True)},
     ),
     create=extend_schema(
         summary="Create a book",
-        description="Створення книжки (тільки staff).",
+        description="Create a book (staff only).",
         request=BookSerializer,
         responses={201: BookSerializer},
     ),
