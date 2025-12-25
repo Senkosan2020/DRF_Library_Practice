@@ -39,6 +39,15 @@ class BorrowingViewSet(
         if user_id and u.is_staff:
             qs = qs.filter(user_id=user_id)
 
+        overdue = self.request.query_params.get("overdue")
+        if overdue is not None:
+            today = timezone.localdate()
+            v = overdue.lower()
+            if v == "true":
+                qs = qs.filter(actual_return_date__isnull=True, expected_return_date__lt=today)
+            elif v == "false":
+                qs = qs.exclude(actual_return_date__isnull=True, expected_return_date__lt=today)
+
         return qs
 
     def get_serializer_class(self):
