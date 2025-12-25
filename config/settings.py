@@ -148,6 +148,7 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.OrderingFilter",
     ],
     "DEFAULT_THROTTLE_RATES": {
         "borrowing_burst": "5/min",
@@ -155,6 +156,7 @@ REST_FRAMEWORK = {
         "return_burst": "5/min",
         "return_sustained": "100/day",
     },
+    "DEFAULT_PAGINATION_CLASS": "config.pagination.DefaultPagination",
 }
 
 SPECTACULAR_SETTINGS = {
