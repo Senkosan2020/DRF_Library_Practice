@@ -5,6 +5,6 @@ from .permissions import IsAdminOrReadOnly
 
 
 class BookViewSet(viewsets.ModelViewSet):
-    queryset = Book.objects.all().order_by('id')
+    queryset = Book.objects.all().order_by("title", "id")
     serializer_class = BookSerializer
     permission_classes = [IsAdminOrReadOnly]

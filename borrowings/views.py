@@ -43,7 +43,7 @@ class BorrowingViewSet(
     http_method_names = ["get", "post"]
     pagination_class = OptionalLimitOffsetPagination
 
-    queryset = Borrowing.objects.select_related("book", "user").order_by("-id")
+    queryset = Borrowing.objects.select_related("book", "user").order_by("-borrow_date", "-id")
 
     def get_queryset(self):
         qs = self.queryset
