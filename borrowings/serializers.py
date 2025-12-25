@@ -24,6 +24,7 @@ class BorrowingReadSerializer(serializers.ModelSerializer):
             "is_active",
             "book",
             "user",
+            "late_fee",
         )
         read_only_fields = ("user",)
 

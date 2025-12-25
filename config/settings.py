@@ -157,7 +157,7 @@ REST_FRAMEWORK = {
         "return_burst": "5/min",
         "return_sustained": "100/day",
     },
-    "DEFAULT_PAGINATION_CLASS": "config.pagination.DefaultPagination",
+    "DEFAULT_PAGINATION_CLASS": "config.pagination.OptionalLimitOffsetPagination",
 }
 
 SPECTACULAR_SETTINGS = {
