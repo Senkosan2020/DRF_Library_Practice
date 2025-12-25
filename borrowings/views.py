@@ -213,26 +213,28 @@ class BorrowingViewSet(
     @extend_schema(
         tags=["Borrowings"],
         summary="Borrowings stats",
-        description="Aggregated counters for visible borrowings.",
-        responses={
-            200: OpenApiTypes.OBJECT,  # {"total": int, "active": int, "overdue": int, "returned": int}
-            401: OpenApiResponse(description="Unauthorized"),
-        },
+        description="Aggregated counters for the current user (or all users for admin).",
+        responses={200: OpenApiTypes.OBJECT},
     )
     @action(detail=False, methods=["get"], url_path="stats")
     def stats(self, request):
         qs = self.get_queryset()
         today = timezone.localdate()
+
+        total = qs.count()
+        active = qs.filter(actual_return_date__isnull=True).count()
+        returned = total - active
+        overdue_active = qs.filter(
+            actual_return_date__isnull=True, expected_return_date__lt=today
+        ).count()
+
         data = {
-            "total": qs.count(),
-            "active": qs.filter(actual_return_date__isnull=True).count(),
-            "overdue": qs.filter(
-                actual_return_date__isnull=True,
-                expected_return_date__lt=today
-            ).count(),
-            "returned": qs.filter(actual_return_date__isnull=False).count(),
+            "total": total,
+            "active": active,
+            "returned": returned,
+            "overdue_active": overdue_active,
         }
-        return Response(data)
+        return Response(data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=["get"], url_path="export")
     def export(self, request):
