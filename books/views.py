@@ -2,9 +2,48 @@ from rest_framework import viewsets
 from .models import Book
 from .serializers import BookSerializer
 from .permissions import IsAdminOrReadOnly
-from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
+from drf_spectacular.utils import (
+    extend_schema,
+    extend_schema_view,
+    OpenApiParameter,
+    OpenApiTypes,
+    OpenApiResponse,
+    OpenApiExample,
+)
 
-@extend_schema(tags=["Books"])
+@extend_schema_view(
+    list=extend_schema(
+        summary="List books",
+        description="Публічний список книжок.",
+        parameters=[
+            OpenApiParameter(
+                name="author",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Фільтр за автором (якщо підтримується у фільтрах).",
+            ),
+            OpenApiParameter(
+                name="title",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Фільтр за назвою (якщо підтримується).",
+            ),
+            OpenApiParameter(
+                name="cover",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Тип обкладинки (HARD/SOFT), якщо підтримується.",
+            ),
+        ],
+        responses={200: BookSerializer(many=True)},
+    ),
+    create=extend_schema(
+        summary="Create a book",
+        description="Створення книжки (тільки staff).",
+        request=BookSerializer,
+        responses={201: BookSerializer},
+    ),
+)
 class BookViewSet(viewsets.ModelViewSet):
     queryset = Book.objects.all().order_by("title", "id")
     serializer_class = BookSerializer
