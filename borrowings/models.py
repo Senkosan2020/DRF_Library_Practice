@@ -14,11 +14,11 @@ class Borrowing(models.Model):
         constraints = [
             models.CheckConstraint(
                 name="borrow_expected_gte_borrow",
-                condition=Q(expected_return_date__gte=F("borrow_date")),
+                check=Q(expected_return_date__gte=F("borrow_date")),
             ),
             models.CheckConstraint(
                 name="borrow_actual_null_or_gte_borrow",
-                condition=Q(actual_return_date__isnull=True) | Q(actual_return_date__gte=F("borrow_date")),
+                check=Q(actual_return_date__isnull=True) | Q(actual_return_date__gte=F("borrow_date")),
             ),
         ]
         indexes = [
