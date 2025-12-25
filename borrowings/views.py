@@ -30,6 +30,9 @@ from .throttling import (
     ReturnSustainedThrottle,
 )
 from .filters import BorrowingFilter
+import csv
+import io
+from django.http import HttpResponse
 
 @extend_schema_view(
     list=extend_schema(
@@ -230,3 +233,38 @@ class BorrowingViewSet(
             "returned": qs.filter(actual_return_date__isnull=False).count(),
         }
         return Response(data)
+
+    @action(detail=False, methods=["get"], url_path="export")
+    def export(self, request):
+        # respect filters/order/pagination inputs but export full filtered set
+        qs = self.filter_queryset(self.get_queryset())
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        is_admin = request.user.is_staff
+        headers = ["id", "book", "borrow_date", "expected_return_date", "actual_return_date", "is_overdue"]
+        if is_admin:
+            headers.insert(1, "user_email")
+        writer.writerow(headers)
+
+        today = timezone.localdate()
+        for b in qs:
+            row = [b.id]
+            if is_admin:
+                row.append(b.user.email)
+            row.extend([
+                b.book.title,
+                b.borrow_date.isoformat(),
+                b.expected_return_date.isoformat(),
+                b.actual_return_date.isoformat() if b.actual_return_date else "",
+                int(b.actual_return_date is None and b.expected_return_date < today),
+            ])
+            writer.writerow(row)
+
+        content = output.getvalue()
+        output.close()
+
+        response = HttpResponse(content, content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="borrowings.csv"'
+        return response
