@@ -6,6 +6,7 @@ from rest_framework import mixins, permissions, serializers, status, viewsets
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.permissions import IsAdminUser
 from datetime import date
 
 from books.models import Book
@@ -124,3 +125,18 @@ class BorrowingViewSet(
         if self.action == "return_borrowing":
             return [ReturnBurstThrottle(), ReturnSustainedThrottle()]
         return []
+
+    @action(detail=False, methods=["get"], url_path="overdue", permission_classes=[IsAdminUser])
+    def overdue(self, request):
+        today = timezone.localdate()
+        qs = self.get_queryset().filter(
+            actual_return_date__isnull=True,
+            expected_return_date__lt=today,
+        )
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            ser = BorrowingReadSerializer(page, many=True)
+            return self.get_paginated_response(ser.data)
+
+        ser = BorrowingReadSerializer(qs, many=True)
+        return Response(ser.data)
