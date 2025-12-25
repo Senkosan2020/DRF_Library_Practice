@@ -55,6 +55,7 @@ class BookViewSet(viewsets.ModelViewSet):
     filter_backends = (DjangoFilterBackend, OrderingFilter)
     ordering_fields = ("title", "author", "inventory", "daily_fee")
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["author", "title", "cover"]
     search_fields = ["title", "author"]
     ordering_fields = ["title", "author", "daily_fee", "inventory", "id"]
     ordering = ["title"]
