@@ -166,7 +166,12 @@ class BorrowingViewSet(
             ),
         ],
     )
-    @action(detail=True, methods=["post"], url_path="return")
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="return",
+        throttle_classes=[ReturnBurstThrottle, ReturnSustainedThrottle],
+    )
     @transaction.atomic
     def return_borrowing(self, request, pk=None):
         borrowing = get_object_or_404(Borrowing, pk=pk)
