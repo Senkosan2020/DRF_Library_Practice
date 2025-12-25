@@ -16,6 +16,7 @@ from .serializers import BorrowingCreateSerializer, BorrowingReadSerializer
 from config.pagination import OptionalLimitOffsetPagination
 from drf_spectacular.utils import (
     extend_schema,
+    extend_schema_view,
     OpenApiParameter,
     OpenApiResponse,
     OpenApiExample,
@@ -28,7 +29,35 @@ from .throttling import (
     ReturnSustainedThrottle,
 )
 
-@extend_schema(tags=["Borrowings"])
+@extend_schema_view(
+    list=extend_schema(
+        summary="List borrowings",
+        description="Повертає список позик. Користувач бачить лише свої, Admin бачить усі.",
+        parameters=[
+            OpenApiParameter(
+                name="is_active",
+                type=OpenApiTypes.BOOL,
+                location=OpenApiParameter.QUERY,
+                description="Фільтр: true — активні (ще не повернені), false — повернені"
+            ),
+            OpenApiParameter(
+                name="user_id",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Тільки для Admin: фільтр за ID користувача"
+            ),
+        ],
+        responses={200: BorrowingReadSerializer(many=True)}
+    ),
+    create=extend_schema(
+        summary="Create borrowing",
+        description="Створює нову позику для автентифікованого користувача.",
+        responses={
+            201: BorrowingReadSerializer,
+            400: OpenApiResponse(description="Validation error")
+        },
+    ),
+)
 class BorrowingViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
