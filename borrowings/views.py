@@ -1,8 +1,12 @@
 from django.utils import timezone
 from django.db import transaction
+from django.db.models import F
+from django.shortcuts import get_object_or_404
 from rest_framework import mixins, permissions, serializers, status, viewsets
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
+from datetime import date
 
 from books.models import Book
 from .models import Borrowing
@@ -10,6 +14,12 @@ from .serializers import BorrowingCreateSerializer, BorrowingReadSerializer
 
 from config.pagination import OptionalLimitOffsetPagination
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
+from .throttling import (
+    BorrowingBurstThrottle,
+    BorrowingSustainedThrottle,
+    ReturnBurstThrottle,
+    ReturnSustainedThrottle,
+)
 
 @extend_schema_view(
     list=extend_schema(
@@ -69,7 +79,13 @@ class BorrowingViewSet(
 
     @transaction.atomic
     def perform_create(self, serializer):
-        book = serializer.validated_data["book"]
+        vd = serializer.validated_data
+        if isinstance(vd, list):
+            if len(vd) != 1:
+                raise serializers.ValidationError({"non_field_errors": ["Bulk create is not supported."]})
+            vd = vd[0]
+
+        book = vd["book"]
         b = Book.objects.select_for_update().get(pk=book.pk)
         if b.inventory <= 0:
             raise serializers.ValidationError({"book": "No inventory available"})
@@ -82,23 +98,29 @@ class BorrowingViewSet(
     @action(detail=True, methods=["post"], url_path="return")
     @transaction.atomic
     def return_borrowing(self, request, pk=None):
-        try:
-            borrowing = Borrowing.objects.select_related("book", "user").get(pk=pk)
-        except Borrowing.DoesNotExist:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        borrowing = get_object_or_404(Borrowing, pk=pk)
 
-        if not request.user.is_staff and borrowing.user_id != request.user.id:
-            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+        if not (request.user.is_staff or borrowing.user_id == request.user.id):
+            raise PermissionDenied("You cannot return someone else's borrowing")
 
         if borrowing.actual_return_date is not None:
-            return Response({"detail": "Already returned"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Already returned"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        book = Book.objects.select_for_update().get(pk=borrowing.book_id)
-        book.inventory += 1
-        book.save(update_fields=["inventory"])
-
-        actual = max(timezone.localdate(), borrowing.borrow_date)
-        borrowing.actual_return_date = actual
+        # Повернення сьогодні + інвентар +1
+        borrowing.actual_return_date = date.today()
         borrowing.save(update_fields=["actual_return_date"])
 
-        return Response(BorrowingReadSerializer(borrowing).data, status=status.HTTP_200_OK)
+        Book.objects.filter(pk=borrowing.book_id).update(inventory=F("inventory") + 1)
+
+        data = BorrowingReadSerializer(borrowing).data
+        return Response(data, status=status.HTTP_200_OK)
+
+    def get_throttles(self):
+        if self.action == "create":
+            return [BorrowingBurstThrottle(), BorrowingSustainedThrottle()]
+        if self.action == "return_borrowing":
+            return [ReturnBurstThrottle(), ReturnSustainedThrottle()]
+        return []

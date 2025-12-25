@@ -134,6 +134,13 @@ STATIC_URL = '/static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "borrowing-throttle",
+    }
+}
+
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -142,6 +149,12 @@ REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",
     ],
+    "DEFAULT_THROTTLE_RATES": {
+        "borrowing_burst": "5/min",
+        "borrowing_sustained": "100/day",
+        "return_burst": "5/min",
+        "return_sustained": "100/day",
+    },
 }
 
 SPECTACULAR_SETTINGS = {
