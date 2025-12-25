@@ -1,4 +1,4 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, filters
 from rest_framework.filters import OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Book
@@ -13,8 +13,6 @@ from drf_spectacular.utils import (
     OpenApiExample,
 )
 from .filters import BookFilter
-
-filterset_class = BookFilter
 
 @extend_schema_view(
     list=extend_schema(
@@ -53,8 +51,12 @@ class BookViewSet(viewsets.ModelViewSet):
     queryset = Book.objects.all().order_by("title", "id")
     serializer_class = BookSerializer
     permission_classes = [IsAdminOrReadOnly]
+    filterset_class = BookFilter
     filter_backends = (DjangoFilterBackend, OrderingFilter)
     ordering_fields = ("title", "author", "inventory", "daily_fee")
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    ordering_fields = ["title", "author", "daily_fee", "inventory", "id"]
+    ordering = ["title"]
 
     @extend_schema(
         summary="List books",
