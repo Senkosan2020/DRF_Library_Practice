@@ -44,6 +44,21 @@ class PaymentViewSet(
             qs = qs.filter(borrowing__user=user)
         return qs
 
+    def get(self, request):
+        qs = Payment.objects.select_related(
+            "borrowing", "borrowing__book", "borrowing__user"
+        ).order_by("-id")
+        if not request.user.is_staff:
+            qs = qs.filter(borrowing__user=request.user)
+
+        paginator = OptionalLimitOffsetPagination()
+        page = paginator.paginate_queryset(qs, request, view=self)
+        data = PaymentReadSerializer(page or qs, many=True).data
+
+        if page is not None:
+            return paginator.get_paginated_response(data)
+        return Response(data)
+
 
 class PaymentPreviewView(APIView):
     permission_classes = [IsAuthenticated]
