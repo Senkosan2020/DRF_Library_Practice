@@ -14,6 +14,7 @@ from .serializers import (
     PaymentCreateSerializer,
     PaymentReadSerializer,
 )
+from .throttling import PaymentBurstThrottle, PaymentSustainedThrottle
 
 
 class PaymentViewSet(
@@ -62,6 +63,7 @@ class PaymentViewSet(
 
 class PaymentPreviewView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [PaymentBurstThrottle, PaymentSustainedThrottle]
 
     def post(self, request):
         borrowing_id = request.data.get("borrowing") or request.data.get("borrowing_id")
@@ -99,6 +101,7 @@ class PaymentCreateView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    throttle_classes = [PaymentBurstThrottle, PaymentSustainedThrottle]
 
     def post(self, request):
         serializer = PaymentCreateSerializer(

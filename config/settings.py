@@ -158,6 +158,8 @@ REST_FRAMEWORK = {
         "borrowing_sustained": "100/day",
         "return_burst": "5/min",
         "return_sustained": "100/day",
+        "payments_burst": "5/min",
+        "payments_sustained": "100/day",
     },
     "DEFAULT_PAGINATION_CLASS": "config.pagination.OptionalLimitOffsetPagination",
 }
