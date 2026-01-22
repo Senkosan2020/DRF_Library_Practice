@@ -1,7 +1,8 @@
+from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, permissions, viewsets, filters, status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import PermissionDenied
@@ -120,3 +121,28 @@ class PaymentPreviewView(APIView):
             {"borrowing": borrowing.id, "amount": amount},
             status=status.HTTP_200_OK,
         )
+
+
+class PaymentWebhookView(APIView):
+    """
+    Stub webhook endpoint:
+    - URL: POST /api/payments/webhook/
+    - Optional signature check via settings.PAYMENTS_WEBHOOK_SECRET.
+    - Always returns 200 for now (no-op), suitable for local/dev.
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        # Optional: very simple signature placeholder
+        secret = getattr(settings, "PAYMENTS_WEBHOOK_SECRET", None)
+        provided = request.headers.get("Stripe-Signature") or request.headers.get(
+            "X-Signature"
+        )
+        if secret and provided != secret:
+            return Response(
+                {"detail": "Invalid signature"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # TODO: parse event and update Payment if needed (future step)
+        return Response({"status": "ok"}, status=status.HTTP_200_OK)
