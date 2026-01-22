@@ -4,6 +4,7 @@ from rest_framework import mixins, permissions, viewsets, filters, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.exceptions import PermissionDenied
 
 from borrowings.models import Borrowing
 from borrowings.serializers import BorrowingReadSerializer
@@ -15,14 +16,20 @@ from .serializers import (
     PaymentReadSerializer,
 )
 from .throttling import PaymentBurstThrottle, PaymentSustainedThrottle
+from decimal import Decimal, InvalidOperation
 
 
 class PaymentViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
     viewsets.GenericViewSet,
 ):
-    serializer_class = PaymentSerializer
+    """
+    /api/payments/           -> list (GET), create (POST)
+    /api/payments/<id>/      -> retrieve (GET)
+    """
+
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = OptionalLimitOffsetPagination
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
@@ -45,28 +52,20 @@ class PaymentViewSet(
             qs = qs.filter(borrowing__user=user)
         return qs
 
-    def get(self, request):
-        qs = Payment.objects.select_related(
-            "borrowing", "borrowing__book", "borrowing__user"
-        ).order_by("-id")
-        if not request.user.is_staff:
-            qs = qs.filter(borrowing__user=request.user)
+    def get_serializer_class(self):
+        if self.action == "create":
+            return PaymentCreateSerializer
+        if self.action in ("list", "retrieve"):
+            return PaymentReadSerializer
+        return PaymentSerializer
 
-        paginator = OptionalLimitOffsetPagination()
-        page = paginator.paginate_queryset(qs, request, view=self)
-        data = PaymentReadSerializer(page or qs, many=True).data
+    def get_throttles(self):
+        if self.action == "create":
+            return [PaymentBurstThrottle(), PaymentSustainedThrottle()]
+        return super().get_throttles()
 
-        if page is not None:
-            return paginator.get_paginated_response(data)
-        return Response(data)
-
-
-class PaymentPreviewView(APIView):
-    permission_classes = [IsAuthenticated]
-    throttle_classes = [PaymentBurstThrottle, PaymentSustainedThrottle]
-
-    def post(self, request):
-        borrowing_id = request.data.get("borrowing") or request.data.get("borrowing_id")
+    def create(self, request, *args, **kwargs):
+        borrowing_id = request.data.get("borrowing")
         if not borrowing_id:
             return Response(
                 {"borrowing": ["This field is required."]},
@@ -77,38 +76,47 @@ class PaymentPreviewView(APIView):
 
         user = request.user
         if not (user.is_staff or borrowing.user_id == user.id):
-            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+            raise PermissionDenied("Forbidden")
 
-        # Reuse existing read-serializer to get computed late_fee if present
-        serialized = BorrowingReadSerializer(borrowing).data
-        amount = serialized.get("late_fee", "0.00")
-
-        return Response(
-            {"borrowing": borrowing.id, "amount": amount},
-            status=status.HTTP_200_OK,
+        serializer = self.get_serializer(
+            data=request.data, context={"request": request}
         )
+        serializer.is_valid(raise_exception=True)
+        payment = serializer.save()
+        read_data = PaymentReadSerializer(payment).data
+        return Response(read_data, status=status.HTTP_201_CREATED)
 
 
-class PaymentCreateView(APIView):
+class PaymentPreviewView(APIView):
     """
-    POST /api/payments/
-    Body: {"borrowing": <id>}
-    Creates a Payment linked to the borrowing.
-    Amount is derived from borrowing's late_fee
-    when the Payment model has an 'amount' field.
-    Status is set to PENDING when the model
-    defines it (constant or field).
+    GET /api/payments/preview/?borrowing=<id>
     """
 
     permission_classes = [IsAuthenticated]
     throttle_classes = [PaymentBurstThrottle, PaymentSustainedThrottle]
 
-    def post(self, request):
-        serializer = PaymentCreateSerializer(
-            data=request.data, context={"request": request}
-        )
-        serializer.is_valid(raise_exception=True)
-        payment = serializer.save()
+    def get(self, request):
+        borrowing_id = request.query_params.get("borrowing")
+        if not borrowing_id:
+            return Response(
+                {"borrowing": ["This query param is required."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        borrowing = get_object_or_404(Borrowing, pk=borrowing_id)
+
+        user = request.user
+        if not (user.is_staff or borrowing.user_id == user.id):
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+        serialized = BorrowingReadSerializer(borrowing).data  # contains 'late_fee'
+        raw_amount = serialized.get("late_fee", "0.00")
+        try:
+            amount = str(Decimal(str(raw_amount)).quantize(Decimal("0.00")))
+        except (InvalidOperation, TypeError):
+            amount = "0.00"
+
         return Response(
-            PaymentReadSerializer(payment).data, status=status.HTTP_201_CREATED
+            {"borrowing": borrowing.id, "amount": amount},
+            status=status.HTTP_200_OK,
         )

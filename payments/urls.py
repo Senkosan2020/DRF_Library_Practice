@@ -1,17 +1,16 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
-from .views import PaymentViewSet, PaymentPreviewView, PaymentCreateView
+from .views import PaymentViewSet, PaymentPreviewView
 
 router = DefaultRouter()
-router.register("payments", PaymentViewSet, basename="payment")
+router.register(
+    "", PaymentViewSet, basename="payment"
+)  # CHANGED: keep base at /api/payments/
 
 urlpatterns = [
-    path("", include(router.urls)),  # /api/payments/, /api/payments/<id>/
     path(
-        "payments/preview/", PaymentPreviewView.as_view(), name="payments-preview"
-    ),  # /api/payments/preview/
-    path(
-        "payments/create/", PaymentCreateView.as_view(), name="payments-create"
-    ),  # /api/payments/create/
+        "preview/", PaymentPreviewView.as_view(), name="payments-preview"
+    ),  # CHANGED: /api/payments/preview/
+    path("", include(router.urls)),  # /api/payments/ , /api/payments/<id>/
 ]
